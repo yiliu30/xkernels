@@ -50,6 +50,28 @@ Run tests with:
 /home/yi4l/workspace/vllm/.venv/bin/python -m pytest
 ```
 
+## UE5M3 conversion performance
+
+The software UE5M3 path was benchmarked on an NVIDIA A100-SXM4-80GB (SM80)
+with PyTorch 2.13.0+cu130. Timings use 16,777,216 elements, 25 warm-up
+iterations, and 200 CUDA-event-timed iterations; bandwidth counts input and
+output bytes.
+
+| Conversion | Median | Effective bandwidth |
+|---|---:|---:|
+| UE5M3 encode, raw extension | 0.163 ms | 515 GB/s |
+| UE5M3 encode, public API | 0.370 ms | 227 GB/s |
+| E4M3FN encode, `tensor.to(torch.float8_e4m3fn)` | 0.067 ms | 1,260 GB/s |
+| UE5M3 decode | 0.138 ms | 607 GB/s |
+| E4M3FN decode, `tensor.to(torch.float32)` | 0.109 ms | 773 GB/s |
+
+The raw UE5M3 encoder is roughly 2.4x slower than the native E4M3FN cast on
+this GPU, and UE5M3 decode is roughly 1.3x slower. The public encoder is
+slower because validation performs whole-tensor negative and NaN checks before
+launching the conversion kernel. These are software-fallback measurements;
+UE5M3 native PTX conversion requires an `sm_107f`-family target and is not
+included here.
+
 ## License and attribution
 
 The E2M1/E8M0 dequantization design follows the Apache-2.0 Marlin code in
