@@ -4,7 +4,12 @@ pytest.importorskip("torch")
 
 import torch
 
-from marlin_kernels import mxfp4_bf16_gemm, prepare_mxfp4_weight
+from marlin_kernels import (
+    mxfp4_bf16_gemm,
+    mxfp4_ue5m3_bf16_gemm,
+    prepare_mxfp4_ue5m3_weight,
+    prepare_mxfp4_weight,
+)
 
 
 def test_prepare_rejects_cpu_tensors():
@@ -20,6 +25,11 @@ def test_prepare_rejects_invalid_scale_shape(monkeypatch):
     # Validation deliberately checks tensor type before accessing CUDA fields.
     with pytest.raises(TypeError, match="torch.Tensor"):
         prepare_mxfp4_weight(FakeTensor(), FakeTensor())
+
+
+def test_prepare_ue5m3_rejects_invalid_block_size():
+    with pytest.raises(ValueError, match="16 or 32"):
+        prepare_mxfp4_ue5m3_weight(None, None, block_size=8)
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="requires CUDA")
@@ -97,3 +107,67 @@ def test_mxfp4_gemm_matches_vllm_marlin(m):
     # This keeps the comparison strict enough to catch decoding/layout errors
     # while allowing the different reduction order of Marlin's Tensor Cores.
     torch.testing.assert_close(ours, reference, rtol=3e-2, atol=4.0)
+
+
+def _decode_e2m1_reference(weight: torch.Tensor) -> torch.Tensor:
+    n, packed_k = weight.shape
+    nibbles = torch.stack((weight.bitwise_and(0xF), weight >> 4), dim=-1).reshape(n, -1)
+    sign = nibbles >> 3
+    exponent = (nibbles >> 1).bitwise_and(0x3)
+    mantissa = nibbles.bitwise_and(1)
+    value = torch.where(
+        exponent.eq(0), mantissa.float() * 0.5,
+        torch.ldexp(1.0 + mantissa.float() * 0.5, exponent.to(torch.int32) - 1),
+    )
+    return torch.where(sign.bool(), -value, value)
+
+
+def _decode_ue5m3_reference(scales: torch.Tensor) -> torch.Tensor:
+    exponent = scales >> 3
+    mantissa = scales.bitwise_and(0x7)
+    value = torch.where(
+        exponent.eq(0),
+        torch.ldexp(
+            mantissa.float(), torch.full(exponent.shape, -17, dtype=torch.int32, device=scales.device)
+        ),
+        torch.ldexp(1.0 + mantissa.float() * 0.125, exponent.to(torch.int32) - 15),
+    )
+    return torch.where(scales.eq(0xFF), torch.full_like(value, torch.nan), value)
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="requires CUDA")
+@pytest.mark.parametrize("block_size", [16, 32])
+@pytest.mark.parametrize("m", [1, 17])
+def test_mxfp4_ue5m3_gemm_matches_reference(block_size, m):
+    torch.manual_seed(81 + block_size + m)
+    n, k = 32, 64
+    weight = torch.randint(0, 256, (n, k // 2), dtype=torch.uint8, device="cuda")
+    scales = torch.randint(0, 0xFF, (n, k // block_size), dtype=torch.uint8, device="cuda")
+    activations = torch.randn((m, k), dtype=torch.bfloat16, device="cuda")
+    bias = torch.randn((n,), dtype=torch.bfloat16, device="cuda")
+
+    actual = mxfp4_ue5m3_bf16_gemm(
+        activations, prepare_mxfp4_ue5m3_weight(weight, scales, block_size), bias
+    )
+    decoded = _decode_e2m1_reference(weight)
+    decoded = decoded * _decode_ue5m3_reference(scales).repeat_interleave(block_size, 1)
+    expected = (activations.float() @ decoded.float().transpose(0, 1) + bias.float()).to(
+        torch.bfloat16
+    )
+    finite = ~torch.isnan(expected)
+    assert torch.equal(torch.isnan(actual), torch.isnan(expected))
+    torch.testing.assert_close(actual[finite], expected[finite], rtol=2e-2, atol=2e-2)
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="requires CUDA")
+@pytest.mark.parametrize("block_size", [16, 32])
+def test_mxfp4_ue5m3_nan_scale_propagates(block_size):
+    n, k = 16, 32
+    weight = torch.full((n, k // 2), 0x11, dtype=torch.uint8, device="cuda")
+    scales = torch.full((n, k // block_size), 0x78, dtype=torch.uint8, device="cuda")
+    scales[:, 0] = 0xFF
+    x = torch.ones((1, k), dtype=torch.bfloat16, device="cuda")
+    output = mxfp4_ue5m3_bf16_gemm(
+        x, prepare_mxfp4_ue5m3_weight(weight, scales, block_size)
+    )
+    assert torch.isnan(output).all()
