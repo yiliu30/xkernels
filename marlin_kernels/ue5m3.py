@@ -7,11 +7,24 @@ from .api import _torch, _validate_cuda_tensor
 
 
 def fp32_to_ue5m3(input):
-    """Encode non-negative CUDA float32 scales as raw uint8 UE5M3 bytes.
+    """Encode CUDA float32 values as raw uint8 UE5M3 bytes without checks.
 
     UE5M3 is the unsigned `EEEEE MMM` PTX scale format, not a PyTorch FP8
-    dtype. Negative values and NaNs are rejected because they are not valid
-    scale inputs. Positive overflow and positive infinity saturate to `0xfe`.
+    dtype. This fast path is intended for known-valid non-negative scale
+    tensors and is CUDA Graph capture-safe. Positive overflow and infinity
+    saturate to `0xfe`; NaN encodes as `0xff`.
+    """
+    torch = _torch()
+    _validate_cuda_tensor(input, "input", torch.float32)
+    return load_ue5m3_extension().fp32_to_ue5m3(input)
+
+
+def fp32_to_ue5m3_checked(input):
+    """Encode a validated non-negative CUDA float32 UE5M3 scale tensor.
+
+    Negative values and NaNs are rejected because they are not valid scale
+    inputs. This debug/reference API synchronizes with the device to report
+    validation failures; use :func:`fp32_to_ue5m3` in production.
     """
     torch = _torch()
     _validate_cuda_tensor(input, "input", torch.float32)
@@ -19,7 +32,7 @@ def fp32_to_ue5m3(input):
         raise ValueError("input must not contain negative UE5M3 scales")
     if torch.any(torch.isnan(input)).item():
         raise ValueError("input must not contain NaN UE5M3 scales")
-    return load_ue5m3_extension().fp32_to_ue5m3(input)
+    return fp32_to_ue5m3(input)
 
 
 def ue5m3_to_fp32(input):

@@ -22,6 +22,7 @@ as `uint8` bit-pattern tensors, not as a built-in FP8 dtype.
 ```python
 from marlin_kernels import (
     fp32_to_ue5m3,
+    fp32_to_ue5m3_checked,
     mxfp4_bf16_gemm,
     prepare_mxfp4_weight,
     ue5m3_to_fp32,
@@ -38,11 +39,13 @@ scales_fp32 = ue5m3_to_fp32(ue5m3)
 consecutive E2M1 values. `raw_e8m0_uint8` has shape `[N, K / 32]` and contains
 the E8M0 bit pattern for each 32-weight block.
 
-`fp32_to_ue5m3` accepts contiguous, non-negative CUDA FP32 scale tensors and
-returns raw CUDA `uint8` bytes. It uses round-to-nearest, ties-to-even;
-positive overflow and infinity saturate to `0xfe`. Negative and NaN input are
-rejected because they are not valid scale inputs. `ue5m3_to_fp32` decodes all
-bytes, including the reserved `0xff` NaN encoding.
+`fp32_to_ue5m3` is the unchecked, CUDA Graph capture-safe production path for
+known-valid non-negative scale tensors; it returns raw CUDA `uint8` bytes and
+uses round-to-nearest, ties-to-even. Positive overflow and infinity saturate
+to `0xfe`; NaN encodes as `0xff`. `fp32_to_ue5m3_checked` adds debugging
+validation and rejects negative or NaN scale input, but performs device-wide
+reductions and synchronization. `ue5m3_to_fp32` decodes all bytes, including
+the reserved `0xff` NaN encoding.
 
 Run tests with:
 
@@ -70,7 +73,8 @@ this GPU, and UE5M3 decode is roughly 1.3x slower. The public encoder is
 slower because validation performs whole-tensor negative and NaN checks before
 launching the conversion kernel. These are software-fallback measurements;
 UE5M3 native PTX conversion requires an `sm_107f`-family target and is not
-included here.
+included here. CUDA 13.4 official UE5M3 conversions remain a future oracle for
+native-toolchain compatibility testing.
 
 ## License and attribution
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Software UE5M3 conversion oracle for targets without native PTX support.
+// Software UE5M3 scale conversion for targets without native PTX support.
 
 #include <ATen/cuda/CUDAContext.h>
 #include <c10/cuda/CUDAException.h>
@@ -13,7 +13,13 @@ namespace {
 constexpr float kUE5M3MinNormal = 0x1.0p-14f;
 constexpr float kUE5M3MaxFinite = 114688.0f;
 
-__device__ __forceinline__ uint8_t fp32_to_ue5m3_rn(float value) {
+__device__ __forceinline__ uint8_t fp32_to_ue5m3_rn_satfinite(float value) {
+  if (isnan(value)) {
+    return 0xff;
+  }
+  if (value <= 0.0f) {
+    return 0;
+  }
   if (value == 0.0f) {
     return 0;
   }
@@ -60,7 +66,7 @@ __global__ void fp32_to_ue5m3_kernel(
   for (int64_t index = blockIdx.x * static_cast<int64_t>(blockDim.x) + threadIdx.x;
        index < numel;
        index += static_cast<int64_t>(blockDim.x) * gridDim.x) {
-    output[index] = fp32_to_ue5m3_rn(input[index]);
+    output[index] = fp32_to_ue5m3_rn_satfinite(input[index]);
   }
 }
 
