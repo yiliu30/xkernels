@@ -37,7 +37,9 @@ def load_extension():
         (source.read_bytes() + torch.__version__.encode() + str(torch.version.cuda).encode())
     ).hexdigest()[:12]
     name = f"marlin_mxfp4_{digest}"
-    extra_cuda_cflags = ["-O3", "--use_fast_math", "-lineinfo"]
+    # Preserve UE5M3's reserved-NaN propagation. ``--use_fast_math`` permits
+    # transformations that assume NaNs cannot occur in arithmetic expressions.
+    extra_cuda_cflags = ["-O3", "-lineinfo"]
     arch_list = os.environ.get("TORCH_CUDA_ARCH_LIST")
     if arch_list:
         # cpp_extension consumes TORCH_CUDA_ARCH_LIST itself.

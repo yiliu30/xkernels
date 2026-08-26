@@ -39,6 +39,11 @@ scales_fp32 = ue5m3_to_fp32(ue5m3)
 consecutive E2M1 values. `raw_e8m0_uint8` has shape `[N, K / 32]` and contains
 the E8M0 bit pattern for each 32-weight block.
 
+For UE5M3 scales, use `prepare_mxfp4_ue5m3_weight(weight, scales, block_size)`
+and `mxfp4_ue5m3_bf16_gemm`. The E2M1 payload packing is unchanged; UE5M3
+scales use `[N, K / 16]` or `[N, K / 32]` for block sizes 16 and 32. See
+[`docs/mxfp4_ue5m3_w4a16.md`](docs/mxfp4_ue5m3_w4a16.md).
+
 `fp32_to_ue5m3` is the unchecked, CUDA Graph capture-safe production path for
 known-valid non-negative scale tensors; it returns raw CUDA `uint8` bytes and
 uses round-to-nearest, ties-to-even. Positive overflow and infinity saturate
