@@ -19,11 +19,15 @@ def load_vllm_marlin_extension():
         raise RuntimeError("marlin-kernels requires CUDA-enabled PyTorch.") from exc
     if not torch.cuda.is_available() or CUDA_HOME is None:
         raise RuntimeError("the Marlin port requires CUDA and NVCC")
-    if torch.cuda.get_device_capability() < (7, 5):
-        raise RuntimeError("the Marlin port requires SM75 or newer")
+    if torch.cuda.get_device_capability() < (8, 0):
+        raise RuntimeError("the current Marlin port requires SM80 or newer")
 
     source_dir = Path(__file__).with_name("csrc") / "vllm_marlin"
     source = source_dir / "bindings.cu"
+    if not source.is_file():
+        raise RuntimeError(
+            "vendored Marlin CUDA sources are missing from this installation"
+        )
     venv_bin = Path(sys.executable).parent
     os.environ["PATH"] = f"{venv_bin}{os.pathsep}{os.environ.get('PATH', '')}"
     digest = hashlib.sha256(

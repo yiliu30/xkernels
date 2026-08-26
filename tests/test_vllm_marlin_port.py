@@ -1,6 +1,13 @@
 """Parity checks for the directly ported vLLM Marlin source."""
 
-import torch
+import pytest
+
+torch = pytest.importorskip("torch")
+pytest.importorskip("vllm")
+
+pytestmark = pytest.mark.skipif(
+    not torch.cuda.is_available(), reason="requires CUDA"
+)
 
 from marlin_kernels.vllm_marlin import gptq_marlin_repack, marlin_gemm
 
