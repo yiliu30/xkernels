@@ -20,4 +20,14 @@ __all__ = [
     "prepare_mxfp4_ue5m3_weight",
     "prepare_mxfp4_weight",
     "ue5m3_to_fp32",
+    "awq_marlin_repack",
+    "gptq_marlin_repack",
+    "marlin_gemm",
+    "marlin_int4_fp8_preprocess",
 ]
+from .vllm_marlin import (
+    awq_marlin_repack,
+    gptq_marlin_repack,
+    marlin_gemm,
+    marlin_int4_fp8_preprocess,
+)
