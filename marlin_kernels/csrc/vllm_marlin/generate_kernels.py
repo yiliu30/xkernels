@@ -161,15 +161,15 @@ QUANT_CONFIGS = [
     },
 ]
 
-# Standalone build: GPTQ INT4 plus predecoded UE5M3 MXFP4 scales. The latter
-# uses BF16 Tensor Cores after one-time UE5M3 scale conversion.
+# Standalone build: GPTQ INT4 plus raw UE5M3 MXFP4 scales. UE5M3 bytes are
+# decoded to BF16 registers in Marlin immediately before Tensor-Core MMA.
 QUANT_CONFIGS = [
     QUANT_CONFIGS[1],
     {
         "a_type": ["kBFloat16"],
         "b_type": "kFE2M1f",
         "c_type": ["kBFloat16"],
-        "s_type": "kBFloat16",
+        "s_type": "kUE5M3",
         "thread_configs": THREAD_CONFIGS,
         "thread_m_blocks": THREAD_M_BLOCKS,
         "group_blocks": [1, 2],

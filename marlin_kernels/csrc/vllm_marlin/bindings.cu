@@ -40,5 +40,5 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
         pybind11::arg("qweight"), pybind11::arg("qzeros_or_none") = std::nullopt,
         pybind11::arg("inplace") = false);
   m.def("mxfp4_bf16_marlin_gemm", &mxfp4_bf16_marlin_gemm,
-        "MXFP4 E2M1 with predecoded BF16 scales Marlin GEMM");
+        "MXFP4 E2M1 with raw UE5M3 scales Marlin GEMM");
 }

@@ -37,18 +37,6 @@ def _padded_nk(n: int, k: int, group_size: int) -> tuple[int, int]:
     return min(candidates, key=lambda nk: (nk[0] * nk[1], nk[0] + nk[1]))
 
 
-def _decode_ue5m3(scales):
-    torch = _torch()
-    exponent = scales >> 3
-    mantissa = scales.bitwise_and(0x7)
-    value = torch.where(
-        exponent.eq(0),
-        torch.ldexp(mantissa.float(), torch.full_like(exponent, -17, dtype=torch.int32)),
-        torch.ldexp(1.0 + mantissa.float() * 0.125, exponent.to(torch.int32) - 15),
-    )
-    return torch.where(scales.eq(0xFF), torch.full_like(value, torch.nan), value)
-
-
 def _permute_scales(scales, group_size: int):
     torch = _torch()
     perm = [i + 8 * j for i in range(8) for j in range(8)]
@@ -57,13 +45,18 @@ def _permute_scales(scales, group_size: int):
     return scales.reshape(-1, len(perm))[:, perm].reshape(-1, scales.size(1)).contiguous()
 
 
+def _process_ue5m3_scales(scales):
+    """Match the byte-lane order consumed by Marlin FP8-scale fragments."""
+    return scales.reshape(-1, 4)[:, [0, 2, 1, 3]].reshape_as(scales).contiguous()
+
+
 def _permute_bias(bias):
     perm = [2 * i + j for i in range(4) for j in (0, 1, 8, 9, 16, 17, 24, 25)]
     return bias.reshape(-1, 32)[:, perm].reshape_as(bias).contiguous()
 
 
 def prepare_mxfp4_ue5m3_marlin_weight(weight, scales, block_size: int = 32):
-    """Repack raw MXFP4 weights and decode UE5M3 scales once for Marlin."""
+    """Repack raw MXFP4 weights and permute raw UE5M3 scales for Marlin."""
     torch = _torch()
     if block_size not in (16, 32):
         raise ValueError("block_size must be 16 or 32")
@@ -87,9 +80,13 @@ def prepare_mxfp4_ue5m3_marlin_weight(weight, scales, block_size: int = 32):
         qweight, torch.empty(0, dtype=torch.int32, device=weight.device),
         padded_k, padded_n, 4, False,
     )
-    decoded = _decode_ue5m3(scales).transpose(0, 1).to(torch.bfloat16)
-    decoded = torch.nn.functional.pad(decoded, (0, padded_n - n, 0, (padded_k - k) // block_size))
-    marlin_scales = _permute_scales(decoded, block_size)
+    marlin_scales = scales.transpose(0, 1).contiguous()
+    marlin_scales = torch.nn.functional.pad(
+        marlin_scales, (0, padded_n - n, 0, (padded_k - k) // block_size)
+    )
+    marlin_scales = _process_ue5m3_scales(
+        _permute_scales(marlin_scales, block_size)
+    )
     workspace = torch.zeros(
         torch.cuda.get_device_properties(weight.device).multi_processor_count,
         dtype=torch.int32, device=weight.device,

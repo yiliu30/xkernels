@@ -328,7 +328,7 @@ __global__ void Marlin(
   if constexpr (b_type == vllm::kFE2M1f) {
     static_assert((s_type == vllm::kFE4M3fn && group_blocks == 1) ||
                   (s_type == vllm::kFE8M0fnu && group_blocks == 2) ||
-                  (s_type == vllm::kBFloat16 &&
+                  (s_type == vllm::kUE5M3 &&
                    (group_blocks == 1 || group_blocks == 2)));
   } else if constexpr (s_type == vllm::kFE8M0fnu) {
     // MXFP8: FP8 weights with e8m0 microscaling block scales
@@ -1213,7 +1213,8 @@ __global__ void Marlin(
       }
     }
 
-    if constexpr (s_type == vllm::kFE4M3fn || s_type == vllm::kFE8M0fnu) {
+    if constexpr (s_type == vllm::kFE4M3fn || s_type == vllm::kFE8M0fnu ||
+                  s_type == vllm::kUE5M3) {
       int s_quant_0 = reinterpret_cast<int*>(frag_s[k2])[0];
       int s_quant_1 = reinterpret_cast<int*>(frag_s[k2])[1];
 
