@@ -122,22 +122,9 @@ def prepare_mxfp4_ue5m3_weight(
     Returns:
         A device-specific prepared weight object for UE5M3 W4A16 GEMM.
     """
-    torch = _torch()
-    if block_size not in (16, 32):
-        raise ValueError("block_size must be 16 or 32")
-    _validate_cuda_tensor(weight, "weight", torch.uint8)
-    _validate_cuda_tensor(scales, "scales", torch.uint8)
-    if weight.ndim != 2 or scales.ndim != 2:
-        raise ValueError("weight and scales must both be rank-2 tensors")
-    n, packed_k = weight.shape
-    k = packed_k * 2
-    if k == 0 or n == 0 or k % block_size:
-        raise ValueError("weight dimensions must be non-zero and K block-aligned")
-    if scales.shape != (n, k // block_size):
-        raise ValueError("scales must have shape [N, K // block_size]")
-    if weight.device != scales.device:
-        raise ValueError("weight and scales must be on the same CUDA device")
-    return MarlinMXFP4UE5M3Weight(weight, scales, n, k, block_size)
+    from .mxfp4_ue5m3_marlin import prepare_mxfp4_ue5m3_marlin_weight
+
+    return prepare_mxfp4_ue5m3_marlin_weight(weight, scales, block_size)
 
 
 def mxfp4_ue5m3_bf16_gemm(
@@ -148,20 +135,6 @@ def mxfp4_ue5m3_bf16_gemm(
     UE5M3 byte ``0xff`` is decoded as NaN and therefore propagates to outputs
     whose reduction spans that scale block.
     """
-    torch = _torch()
-    _validate_cuda_tensor(activations, "activations", torch.bfloat16)
-    if activations.ndim < 2:
-        raise ValueError("activations must have shape [..., K]")
-    if activations.shape[-1] != prepared.k:
-        raise ValueError("activations last dimension must equal prepared.k")
-    if activations.device != prepared.packed.device:
-        raise ValueError("activations and prepared weights must share a device")
-    if bias is not None:
-        _validate_cuda_tensor(bias, "bias", torch.bfloat16)
-        if bias.shape != (prepared.n,) or bias.device != activations.device:
-            raise ValueError("bias must have shape [N] on the activation device")
-    flat = activations.reshape(-1, prepared.k)
-    output = load_extension().mxfp4_ue5m3_bf16_gemm(
-        flat, prepared.packed, prepared.scales, prepared.block_size, bias
-    )
-    return output.reshape(*activations.shape[:-1], prepared.n)
+    from .mxfp4_ue5m3_marlin import mxfp4_ue5m3_marlin_bf16_gemm
+
+    return mxfp4_ue5m3_marlin_bf16_gemm(activations, prepared, bias)
