@@ -599,10 +599,13 @@ torch::Tensor marlin_gemm(
     } else if (b_scales.scalar_type() ==
                torch::kFloat8_e8m0fnu) {
       s_type_id = vllm::kFE8M0fnu.id();
+    } else if (b_scales.scalar_type() == torch::kBFloat16) {
+      s_type_id = vllm::kBFloat16.id();
     } else {
       TORCH_CHECK(
           false, "When b_type = float4_e2m1f, b_scale scalar type must be",
-          "float8_e4m3fn (for NVFP4) or float8_e8m0fnu (for MXFP4).");
+          "float8_e4m3fn (for NVFP4), float8_e8m0fnu (for MXFP4), or "
+          "bfloat16 (for predecoded scales).");
     }
   } else if (b_type_id == vllm::kFE4M3fn.id() &&
              b_scales.scalar_type() ==
@@ -882,4 +885,3 @@ torch::Tensor marlin_gemm(
 }
 
 #endif
-

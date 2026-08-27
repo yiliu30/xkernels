@@ -326,8 +326,10 @@ __global__ void Marlin(
   static constexpr auto c_type = vllm::ScalarType::from_id(c_type_id);
   static constexpr auto s_type = vllm::ScalarType::from_id(s_type_id);
   if constexpr (b_type == vllm::kFE2M1f) {
-    static_assert(s_type == vllm::kFE4M3fn && group_blocks == 1 ||
-                  s_type == vllm::kFE8M0fnu && group_blocks == 2);
+    static_assert((s_type == vllm::kFE4M3fn && group_blocks == 1) ||
+                  (s_type == vllm::kFE8M0fnu && group_blocks == 2) ||
+                  (s_type == vllm::kBFloat16 &&
+                   (group_blocks == 1 || group_blocks == 2)));
   } else if constexpr (s_type == vllm::kFE8M0fnu) {
     // MXFP8: FP8 weights with e8m0 microscaling block scales
     static_assert(b_type == vllm::kFE4M3fn && group_blocks == 2);
