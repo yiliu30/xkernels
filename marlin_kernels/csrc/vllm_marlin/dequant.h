@@ -518,6 +518,21 @@ __device__ inline void dequant<__nv_fp8x4_e4m3, vllm::kU4B8.id(), true>(
 template <typename scalar_t2, vllm::ScalarTypeId s_type_id>
 __device__ inline void dequant_fp8_scales(int q, scalar_t2* frag_b);
 
+__device__ inline uint16_t ue5m3_to_bf16_bits(uint8_t scale) {
+  if (scale == 0xff) return 0x7fc0;
+  int exponent = scale >> 3;
+  int mantissa = scale & 0x7;
+  if (exponent != 0) {
+    // UE5M3 exponent bias is 15; BF16 exponent bias is 127.
+    return static_cast<uint16_t>(((exponent + 112) << 7) | (mantissa << 4));
+  }
+  if (mantissa == 0) return 0;
+  int leading_bit = 31 - __clz(mantissa);
+  return static_cast<uint16_t>(((110 + leading_bit) << 7) |
+                               ((mantissa - (1 << leading_bit))
+                                << (7 - leading_bit)));
+}
+
 template <>
 __device__ inline void dequant_fp8_scales<half2, vllm::kFE4M3fn.id()>(
     int q, half2* frag_b) {
@@ -560,6 +575,20 @@ __device__ inline void dequant_fp8_scales<nv_bfloat162, vllm::kFE8M0fnu.id()>(
   // Note: reverse indexing is intentional because weights are permuted
   frag_b[1] = *reinterpret_cast<const nv_bfloat162*>(&Out1);
   frag_b[0] = *reinterpret_cast<const nv_bfloat162*>(&Out2);
+};
+
+template <>
+__device__ inline void dequant_fp8_scales<nv_bfloat162, vllm::kUE5M3.id()>(
+    int q, nv_bfloat162* frag_b) {
+  auto unpack_pair = [](int packed) {
+    uint32_t out = ue5m3_to_bf16_bits((packed >> 8) & 0xff) |
+                   (uint32_t(ue5m3_to_bf16_bits((packed >> 24) & 0xff))
+                    << 16);
+    return *reinterpret_cast<nv_bfloat162*>(&out);
+  };
+  // Preserve the scale-fragment order used by the copied E4M3FN path.
+  frag_b[1] = unpack_pair(q);
+  frag_b[0] = unpack_pair(q << 8);
 };
 
 // subtract zero point in quanted format and then dequant

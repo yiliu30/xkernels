@@ -333,6 +333,9 @@ static inline constexpr auto kFE4M3fn =
     ScalarType::float_(4, 3, true, ScalarType::NAN_EXTD_RANGE_MAX_MIN);
 static inline constexpr auto kFE8M0fnu =
     ScalarType(8, 0, false, 0, true, ScalarType::NAN_EXTD_RANGE_MAX_MIN);
+// PTX UE5M3: unsigned E5M3 with 0xff reserved for NaN.
+static inline constexpr auto kUE5M3 =
+    ScalarType(5, 3, false, 0, true, ScalarType::NAN_EXTD_RANGE_MAX_MIN);
 static inline constexpr auto kFE5M2 = ScalarType::float_IEEE754(5, 2);
 static inline constexpr auto kFE8M7 = ScalarType::float_IEEE754(8, 7);
 static inline constexpr auto kFE5M10 = ScalarType::float_IEEE754(5, 10);
