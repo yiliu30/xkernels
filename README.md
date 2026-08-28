@@ -1,6 +1,7 @@
-# marlin-kernels
+# xkernels
 
-`marlin-kernels` provides a CUDA JIT extension for dense MXFP4 W4A16 GEMM:
+`xkernels` is an umbrella library for independently developed, JIT-compiled
+CUDA kernels. Its first kernel family is Marlin, providing dense MXFP4 W4A16 GEMM:
 BF16 activations multiplied by packed E2M1 weights with E8M0 scales per
 32-value block. The extension builds the first time GEMM is invoked and is
 cached by PyTorch's extension cache. This first functional version preserves
@@ -20,7 +21,9 @@ as `uint8` bit-pattern tensors, not as a built-in FP8 dtype.
 ## Usage
 
 ```python
-from marlin_kernels import (
+import xkernels
+
+from xkernels import (
     fp32_to_ue5m3,
     fp32_to_ue5m3_checked,
     mxfp4_bf16_gemm,
@@ -33,6 +36,9 @@ out = mxfp4_bf16_gemm(activations_bf16, prepared, bias=None)
 
 ue5m3 = fp32_to_ue5m3(scales_fp32)
 scales_fp32 = ue5m3_to_fp32(ue5m3)
+
+# The same APIs are also organized under the kernel-family namespace.
+output = xkernels.marlin.marlin_gemm(...)
 ```
 
 `raw_e2m1_uint8` has shape `[N, K / 2]`; the low then high nibble represent
@@ -57,6 +63,8 @@ Run tests with:
 ```bash
 /home/yi4l/workspace/vllm/.venv/bin/python -m pytest
 ```
+
+Set `XKERNELS_VERBOSE_BUILD=1` to print JIT-extension build output.
 
 ## UE5M3 conversion performance
 

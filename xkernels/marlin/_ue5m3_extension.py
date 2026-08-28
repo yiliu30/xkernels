@@ -17,15 +17,15 @@ def load_ue5m3_extension():
         from torch.utils.cpp_extension import CUDA_HOME, load
     except ImportError as exc:
         raise RuntimeError(
-            "marlin-kernels requires a PyTorch installation with CUDA support."
+            "xkernels requires a PyTorch installation with CUDA support."
         ) from exc
 
     if not torch.cuda.is_available():
-        raise RuntimeError("marlin-kernels requires an available CUDA device.")
+        raise RuntimeError("xkernels requires an available CUDA device.")
     if CUDA_HOME is None:
-        raise RuntimeError("marlin-kernels requires NVCC; CUDA_HOME is not set.")
+        raise RuntimeError("xkernels requires NVCC; CUDA_HOME is not set.")
     if torch.cuda.get_device_capability() < (8, 0):
-        raise RuntimeError("marlin-kernels requires an SM80 or newer CUDA device.")
+        raise RuntimeError("xkernels requires an SM80 or newer CUDA device.")
 
     source = Path(__file__).with_name("csrc") / "ue5m3" / "ue5m3.cu"
     venv_bin = Path(sys.executable).parent
@@ -34,10 +34,10 @@ def load_ue5m3_extension():
         source.read_bytes() + torch.__version__.encode() + str(torch.version.cuda).encode()
     ).hexdigest()[:12]
     return load(
-        name=f"marlin_ue5m3_{digest}",
+        name=f"xkernels_marlin_ue5m3_{digest}",
         sources=[str(source)],
         extra_cuda_cflags=["-O3", "-lineinfo"],
         extra_cflags=["-O3"],
         with_cuda=True,
-        verbose=os.environ.get("MARLIN_KERNELS_VERBOSE_BUILD") == "1",
+        verbose=os.environ.get("XKERNELS_VERBOSE_BUILD") == "1",
     )
