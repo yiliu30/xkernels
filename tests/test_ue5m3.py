@@ -6,7 +6,7 @@ pytest.importorskip("torch")
 
 import torch
 
-from marlin_kernels import fp32_to_ue5m3, fp32_to_ue5m3_checked, ue5m3_to_fp32
+from xkernels import fp32_to_ue5m3, fp32_to_ue5m3_checked, ue5m3_to_fp32
 
 
 def test_encode_rejects_cpu_tensor():

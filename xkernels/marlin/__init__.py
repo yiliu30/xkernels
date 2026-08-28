@@ -1,4 +1,4 @@
-"""JIT-compiled CUDA kernels for MXFP4 GEMM and UE5M3 conversion."""
+"""Marlin JIT-compiled CUDA kernels for MXFP4 GEMM and UE5M3 conversion."""
 
 from .api import (
     MarlinMXFP4UE5M3Weight,
@@ -13,6 +13,13 @@ from .mxfp4_ue5m3_marlin import (
     MarlinMXFP4UE5M3TensorCoreWeight,
     mxfp4_ue5m3_marlin_bf16_gemm,
     prepare_mxfp4_ue5m3_marlin_weight,
+)
+
+from .vllm_marlin import (
+    awq_marlin_repack,
+    gptq_marlin_repack,
+    marlin_gemm,
+    marlin_int4_fp8_preprocess,
 )
 
 __all__ = [
@@ -33,9 +40,3 @@ __all__ = [
     "marlin_gemm",
     "marlin_int4_fp8_preprocess",
 ]
-from .vllm_marlin import (
-    awq_marlin_repack,
-    gptq_marlin_repack,
-    marlin_gemm,
-    marlin_int4_fp8_preprocess,
-)

@@ -39,7 +39,7 @@ def _torch():
     try:
         import torch
     except ImportError as exc:
-        raise RuntimeError("marlin-kernels requires PyTorch.") from exc
+        raise RuntimeError("xkernels requires PyTorch.") from exc
     return torch
 
 

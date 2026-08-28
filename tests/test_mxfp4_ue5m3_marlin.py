@@ -4,7 +4,7 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
-from marlin_kernels import (
+from xkernels import (
     fp32_to_ue5m3,
     mxfp4_ue5m3_bf16_gemm,
     prepare_mxfp4_ue5m3_weight,

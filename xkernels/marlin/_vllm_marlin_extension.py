@@ -16,7 +16,7 @@ def load_vllm_marlin_extension():
         import torch
         from torch.utils.cpp_extension import CUDA_HOME, load
     except ImportError as exc:
-        raise RuntimeError("marlin-kernels requires CUDA-enabled PyTorch.") from exc
+        raise RuntimeError("xkernels requires CUDA-enabled PyTorch.") from exc
     if not torch.cuda.is_available() or CUDA_HOME is None:
         raise RuntimeError("the Marlin port requires CUDA and NVCC")
     if torch.cuda.get_device_capability() < (8, 0):
@@ -37,11 +37,11 @@ def load_vllm_marlin_extension():
         + str(torch.version.cuda).encode()
     ).hexdigest()[:12]
     return load(
-        name=f"xkernels_vllm_marlin_{digest}",
+        name=f"xkernels_marlin_vllm_{digest}",
         sources=[str(source)],
         extra_include_paths=[str(source_dir)],
         extra_cflags=["-O3"],
         extra_cuda_cflags=["-O3", "-lineinfo"],
         with_cuda=True,
-        verbose=os.environ.get("MARLIN_KERNELS_VERBOSE_BUILD") == "1",
+        verbose=os.environ.get("XKERNELS_VERBOSE_BUILD") == "1",
     )

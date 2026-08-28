@@ -9,7 +9,7 @@ pytestmark = pytest.mark.skipif(
     not torch.cuda.is_available(), reason="requires CUDA"
 )
 
-from marlin_kernels.vllm_marlin import gptq_marlin_repack, marlin_gemm
+from xkernels.marlin.vllm_marlin import gptq_marlin_repack, marlin_gemm
 
 
 def test_gptq_repack_matches_vllm():
